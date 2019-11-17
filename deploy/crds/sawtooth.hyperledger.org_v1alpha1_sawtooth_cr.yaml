@@ -1,0 +1,7 @@
+apiVersion: sawtooth.hyperledger.org/v1alpha1
+kind: Sawtooth
+metadata:
+  name: example-sawtooth
+spec:
+  # Add fields here
+  size: 3
