@@ -10,7 +10,7 @@ import (
 // SawtoothSpec defines the desired state of Sawtooth
 // +k8s:openapi-gen=true
 type SawtoothSpec struct {
-	Nodes     int64  `json:"nodes"`
+	Nodes     int  `json:"nodes"`
 	Version   string `json:"version"`
 	Consensus string `json:"consensus"`
 }
@@ -18,9 +18,7 @@ type SawtoothSpec struct {
 // SawtoothStatus defines the observed state of Sawtooth
 // +k8s:openapi-gen=true
 type SawtoothStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+	NodeNumber int `json:"node_number"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
