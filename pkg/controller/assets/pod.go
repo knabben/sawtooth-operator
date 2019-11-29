@@ -39,8 +39,9 @@ func createInitContainer(imageName string) []corev1.Container {
 
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string) *corev1.Pod {
+func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string, number int) *corev1.Pod {
 	labels := GetLabel()
+	labels["version"] = fmt.Sprintf("sawtooth-%d", number)
 	imageName := fmt.Sprintf("hyperledger/sawtooth-validator:%s", cr.Spec.Version)
 
 	return &corev1.Pod{
@@ -57,7 +58,7 @@ func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string) *corev1.Pod {
 					Image:   imageName,
 					Command: []string{
 						"sawtooth-validator", "-vv",
-						"--endpoint", "tcp://$SAWTOOTH_0_SERVICE_HOST:8800",
+						"--endpoint", "tcp://eth0:8800",
 						"--bind", "component:tcp://eth0:4004",
 						"--bind", "consensus:tcp://eth0:5050",
 						"--bind", "network:tcp://eth0:8800",

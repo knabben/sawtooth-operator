@@ -106,7 +106,7 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 		podName := fmt.Sprintf("%s-pod-%d", instance.Name, numberPods)
 
 		// CreatePod starts a new pod
-		pod := assets.CreatePodSpec(instance, podName)
+		pod := assets.CreatePodSpec(instance, podName, numberPods)
 
 		// Set Sawtooth instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
@@ -119,18 +119,27 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 
 			err = r.CreatePod(pod)
 			if err != nil {
-				reqLogger.Error(err, "Failed to create pod")
+				reqLogger.Error(err, "Failed to create pod.")
 				return reconcile.Result{}, err
 			}
+			// Create service
+			service := assets.CreateService(strconv.Itoa(numberPods))
+			err := r.client.Create(context.TODO(), service)
+			if err != nil {
+				reqLogger.Error(err, "Failed to create service.")
+				return reconcile.Result{}, err
+			}
+			if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
+				return reconcile.Result{}, err
+			}
+
 			return reconcile.Result{Requeue: true}, nil
 		}
+	}
 
-		err = r.updateStatus(instance, numberPods)
-		if err != nil {
-			reqLogger.Error(err, "Failed to update Memcached status")
-			return reconcile.Result{}, err
-		}
-
+	err = r.updateStatus(instance, numberPods)
+	if err != nil {
+		reqLogger.Error(err, "Failed to update Memcached status")
 		return reconcile.Result{}, err
 	}
 
@@ -158,7 +167,6 @@ func (r *ReconcileSawtooth) GetPod(pod *corev1.Pod) error {
 
 func (r *ReconcileSawtooth) CreatePod(pod *corev1.Pod) error {
 	err := r.client.Create(context.TODO(), pod)
-
 	if err != nil {
 		return err
 	}
