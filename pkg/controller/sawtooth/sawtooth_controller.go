@@ -2,6 +2,7 @@ package sawtooth
 
 import (
 	"context"
+	"fmt"
 	"github.com/knabben/sawtooth-operator/pkg/controller/assets"
 	"strconv"
 
@@ -98,18 +99,30 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	numberPods := len(podList)
+	reqLogger.Info("Number of pods", "numberPods", numberPods, "spec", instance.Spec.Nodes)
+
 	// Update status.Nodes if needed
-	if numberPods < instance.Spec.Nodes {
+	if numberPods != instance.Spec.Nodes {
+		podName := fmt.Sprintf("%s-pod-%d", instance.Name, numberPods)
+
 		// CreatePod starts a new pod
-		pod := assets.CreatePod(instance, numberPods)
+		pod := assets.CreatePodSpec(instance, podName)
+
 		// Set Sawtooth instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
 			return reconcile.Result{}, err
 		}
 
-		err := r.getOrCreatePod(pod)
-		if err != nil {
-			return reconcile.Result{}, err
+		err := r.GetPod(pod)
+		if err != nil && errors.IsNotFound(err) {
+			reqLogger.Info("Pod not found, creating.", "podName", podName)
+
+			err = r.CreatePod(pod)
+			if err != nil {
+				reqLogger.Error(err, "Failed to create pod")
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{Requeue: true}, nil
 		}
 
 		err = r.updateStatus(instance, numberPods)
@@ -138,22 +151,15 @@ func (r *ReconcileSawtooth) updateStatus(instance *sawtoothv1alpha1.Sawtooth, nu
 	return nil
 }
 
-func (r *ReconcileSawtooth) getOrCreatePod(pod *corev1.Pod) error {
+func (r *ReconcileSawtooth) GetPod(pod *corev1.Pod) error {
 	found := &corev1.Pod{}
+	return r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+}
 
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		// Check if this Pod already exists
-		//reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+func (r *ReconcileSawtooth) CreatePod(pod *corev1.Pod) error {
+	err := r.client.Create(context.TODO(), pod)
 
-		err = r.client.Create(context.TODO(), pod)
-		if err != nil {
-			return err
-		}
-
-		// Pod created successfully - don't requeue
-		return err
-	} else if err != nil {
+	if err != nil {
 		return err
 	}
 
@@ -163,7 +169,6 @@ func (r *ReconcileSawtooth) getOrCreatePod(pod *corev1.Pod) error {
 // fetchPodListItem return the items with the Sawtooth label
 func (r *ReconcileSawtooth) fetchPodListItems() ([]corev1.Pod, error) {
 	podList := &corev1.PodList{}
-
 	listOpts := []client.ListOption{
 		client.InNamespace("default"),
 		client.MatchingLabels(assets.GetLabel()),
@@ -172,9 +177,9 @@ func (r *ReconcileSawtooth) fetchPodListItems() ([]corev1.Pod, error) {
 	if err := r.client.List(context.TODO(), podList, listOpts...); err != nil {
 		return nil, err
 	}
-
 	return podList.Items, nil
 }
+
 func (r *ReconcileSawtooth) verifyNodes(nodes int, status sawtoothv1alpha1.SawtoothStatus) bool {
 	return nodes == status.NodeNumber
 }
