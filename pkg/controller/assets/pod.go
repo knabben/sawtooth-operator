@@ -1,4 +1,4 @@
-package utils
+package assets
 
 import (
 	"fmt"
@@ -6,18 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func generateLabel(name string) map[string]string {
-	return map[string]string{
-		"app": name,
-	}
-}
-
-func newHostPathType(hostType string) *corev1.HostPathType {
-	hostPathType := new(corev1.HostPathType)
-	*hostPathType = corev1.HostPathType(hostType)
-	return hostPathType
-}
 
 // createVolumes generates batch.config file and validator.priv key
 func createVolumes() []corev1.Volume {
@@ -51,13 +39,14 @@ func createInitContainer(imageName string) []corev1.Container {
 
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func CreatePod(cr *sawtoothv1alpha1.Sawtooth) *corev1.Pod {
-	labels := generateLabel(cr.Name)
+func CreatePod(cr *sawtoothv1alpha1.Sawtooth, number int) *corev1.Pod {
+	labels := GetLabel()
+	podName := fmt.Sprintf("%s-pod-%d", cr.Name, number)
 	imageName := fmt.Sprintf("hyperledger/sawtooth-validator:%s", cr.Spec.Version)
 
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
+			Name:      podName,
 			Namespace: cr.Namespace,
 			Labels:    labels,
 		},
@@ -65,7 +54,7 @@ func CreatePod(cr *sawtoothv1alpha1.Sawtooth) *corev1.Pod {
 			InitContainers: createInitContainer(imageName),
 			Containers: []corev1.Container{
 				{
-					Name:    "sawtooth-1",
+					Name:    fmt.Sprintf("sawtooth-%d", number),
 					Image:   imageName,
 					Command: []string{
 						"sawtooth-validator", "-vv",
