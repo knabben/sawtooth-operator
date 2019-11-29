@@ -67,6 +67,27 @@ func schema_pkg_apis_sawtooth_v1alpha1_SawtoothSpec(ref common.ReferenceCallback
 			SchemaProps: spec.SchemaProps{
 				Description: "SawtoothSpec defines the desired state of Sawtooth",
 				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"nodes": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"consensus": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"nodes", "version", "consensus"},
 			},
 		},
 	}
