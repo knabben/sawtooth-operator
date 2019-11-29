@@ -1,7 +1,8 @@
 apiVersion: sawtooth.hyperledger.org/v1alpha1
 kind: Sawtooth
 metadata:
-  name: example-sawtooth
+  name: sawtooth-1
 spec:
-  # Add fields here
-  size: 3
+  nodes: 3
+  version: 1.2.3
+  consensus: dev

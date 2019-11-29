@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+   name: sawtooth-1
+spec:
+  containers:
+  - image: hyperledger/sawtooth-validator:1.2.3
+    name: sawtooth-1
+    volumeMounts:
+      - mountPath: /etc/sawtooth
+        name: private-key
+  volumes:
+    - name: private-key
+      hostPath:
+        path:
