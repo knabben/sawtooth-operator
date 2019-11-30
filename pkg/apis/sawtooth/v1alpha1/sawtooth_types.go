@@ -19,6 +19,7 @@ type SawtoothSpec struct {
 // +k8s:openapi-gen=true
 type SawtoothStatus struct {
 	NodeNumber int `json:"node_number"`
+	Services []string `json:"services"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

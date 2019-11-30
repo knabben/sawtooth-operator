@@ -39,10 +39,18 @@ func createInitContainer(imageName string) []corev1.Container {
 
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string, number int) *corev1.Pod {
+func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string, number int, peerArgs []string) *corev1.Pod {
 	labels := GetLabel()
 	labels["version"] = fmt.Sprintf("sawtooth-%d", number)
 	imageName := fmt.Sprintf("hyperledger/sawtooth-validator:%s", cr.Spec.Version)
+	command := append([]string{
+		"sawtooth-validator", "-vv",
+		"--endpoint", "tcp://eth0:8800",
+		"--peering", "dynamic",
+		"--bind", "component:tcp://eth0:4004",
+		"--bind", "consensus:tcp://eth0:5050",
+		"--bind", "network:tcp://eth0:8800",
+	}, peerArgs...)
 
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,13 +64,7 @@ func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string, number int) *c
 				{
 					Name:    podName,
 					Image:   imageName,
-					Command: []string{
-						"sawtooth-validator", "-vv",
-						"--endpoint", "tcp://eth0:8800",
-						"--bind", "component:tcp://eth0:4004",
-						"--bind", "consensus:tcp://eth0:5050",
-						"--bind", "network:tcp://eth0:8800",
-					},
+					Command: command,
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name: "validator-priv",

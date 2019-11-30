@@ -14,9 +14,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -51,10 +55,19 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to secondary resource Pods and requeue the owner Sawtooth
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	src := &source.Kind{Type: &corev1.Pod{}}
+	pred := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+	}
+	err = c.Watch(src, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &sawtoothv1alpha1.Sawtooth{},
-	})
+	}, pred)
 	if err != nil {
 		return err
 	}
@@ -83,9 +96,6 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
 			reqLogger.Info("No Sawtooth CR found.")
 			return reconcile.Result{}, nil
 		}
@@ -105,11 +115,19 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 	if numberPods != instance.Spec.Nodes {
 		podName := fmt.Sprintf("%s-pod-%d", instance.Name, numberPods)
 
+
+		peerArgs := []string{}
+		for _, svc := range instance.Status.Services {
+			reqLogger.Info("Service", "svc", svc)
+			peerArgs = append(peerArgs, "--seeds", svc)
+		}
+
 		// CreatePod starts a new pod
-		pod := assets.CreatePodSpec(instance, podName, numberPods)
+		pod := assets.CreatePodSpec(instance, podName, numberPods, peerArgs)
 
 		// Set Sawtooth instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+			reqLogger.Error(err, "Failed to set reference.")
 			return reconcile.Result{}, err
 		}
 
@@ -122,6 +140,7 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 				reqLogger.Error(err, "Failed to create pod.")
 				return reconcile.Result{}, err
 			}
+
 			// Create service
 			service := assets.CreateService(strconv.Itoa(numberPods))
 			err := r.client.Create(context.TODO(), service)
@@ -129,7 +148,16 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 				reqLogger.Error(err, "Failed to create service.")
 				return reconcile.Result{}, err
 			}
+
 			if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
+				reqLogger.Error(err, "Failed to set reference.")
+				return reconcile.Result{}, err
+			}
+
+			instance.Status.Services = append(instance.Status.Services, service.Name)
+			err = r.updateStatus(instance, numberPods)
+			if err != nil {
+				reqLogger.Error(err, "Failed to update Memcached status")
 				return reconcile.Result{}, err
 			}
 
