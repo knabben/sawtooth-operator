@@ -119,7 +119,7 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 		peerArgs := []string{}
 		for _, svc := range instance.Status.Services {
 			reqLogger.Info("Service", "svc", svc)
-			peerArgs = append(peerArgs, "--seeds", fmt.Sprintf("%s:8800", svc))
+			peerArgs = append(peerArgs, "--seeds", fmt.Sprintf("tcp://%s:8800", svc))
 		}
 
 		// CreatePod starts a new pod
@@ -163,16 +163,16 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 
 			return reconcile.Result{Requeue: true}, nil
 		}
-	}
 
-	err = r.updateStatus(instance, numberPods)
-	if err != nil {
-		reqLogger.Error(err, "Failed to update Memcached status")
-		return reconcile.Result{}, err
+		err = r.updateStatus(instance, numberPods)
+		if err != nil {
+			reqLogger.Error(err, "Failed to update Memcached status")
+			return reconcile.Result{}, err
+		}
 	}
 
 	// Pod already exists - don't requeue but save state
-	reqLogger.Info(strconv.Itoa(int(instance.Spec.Nodes)))
+	reqLogger.Info("Total final nodes", "nodes", strconv.Itoa(int(instance.Spec.Nodes)))
 
 	return reconcile.Result{}, nil
 }

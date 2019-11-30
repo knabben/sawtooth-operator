@@ -42,15 +42,21 @@ func createInitContainer(imageName string) []corev1.Container {
 func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string, number int, peerArgs []string) *corev1.Pod {
 	labels := GetLabel()
 	labels["version"] = fmt.Sprintf("sawtooth-%d", number)
-	imageName := fmt.Sprintf("hyperledger/sawtooth-validator:%s", cr.Spec.Version)
+	
 	command := append([]string{
 		"sawtooth-validator", "-vv",
-		"--endpoint", "tcp://eth0:8800",
+		"--endpoint", fmt.Sprintf("tcp://service-%d:8800", number),
 		"--peering", "dynamic",
 		"--bind", "component:tcp://eth0:4004",
 		"--bind", "consensus:tcp://eth0:5050",
 		"--bind", "network:tcp://eth0:8800",
 	}, peerArgs...)
+
+	validatorImage := fmt.Sprintf("hyperledger/sawtooth-validator:%s", cr.Spec.Version)
+
+	restApiCommand := append([]string{
+		"sawtooth-rest-api", "-C", "tcp://eth0:4004",
+	})
 
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -59,12 +65,23 @@ func CreatePodSpec(cr *sawtoothv1alpha1.Sawtooth, podName string, number int, pe
 			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
-			InitContainers: createInitContainer(imageName),
+			InitContainers: createInitContainer(validatorImage),
 			Containers: []corev1.Container{
 				{
-					Name:    podName,
-					Image:   imageName,
+					Name:    fmt.Sprintf("validator-%s", podName),
+					Image:   validatorImage,
 					Command: command,
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name: "validator-priv",
+							MountPath: "/etc/sawtooth/keys",
+						},
+					},
+				},
+				{
+					Name:    fmt.Sprintf("rest-api-%s", podName),
+					Image:   fmt.Sprintf("hyperledger/sawtooth-rest-api:%s", cr.Spec.Version),
+					Command: restApiCommand,
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name: "validator-priv",

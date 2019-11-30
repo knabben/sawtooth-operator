@@ -26,6 +26,14 @@ func CreateService(serviceNumber string) *corev1.Service {
 					Name: "peer",
 					Port: 8800,
 				},
+				{
+					Name: "component",
+					Port: 4004,
+				},
+				{
+					Name: "http",
+					Port: 8008,
+				},
 			},
 		},
 	}
