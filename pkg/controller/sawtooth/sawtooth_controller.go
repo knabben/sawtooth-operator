@@ -111,8 +111,8 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	numberPods := len(podList)
 
+	numberPods := len(podList)
 	reqLogger.Info("Number of pods", "numberPods", numberPods, "spec", instance.Spec.Nodes)
 
 	sawtooth.NodeNumber = numberPods
@@ -164,7 +164,7 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 			instance.Status.Services = append(instance.Status.Services, service.Name)
 			err = r.updateStatus(instance, numberPods)
 			if err != nil {
-				reqLogger.Error(err, "Failed to update Service status status")
+				reqLogger.Error(err, "Failed to update service status")
 				return reconcile.Result{}, err
 			}
 
@@ -173,7 +173,7 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 
 		err = r.updateStatus(instance, numberPods)
 		if err != nil {
-			reqLogger.Error(err, "Failed to update Memcached status")
+			reqLogger.Error(err, "Failed to update pod status")
 			return reconcile.Result{}, err
 		}
 	}

@@ -42,14 +42,7 @@ All nodes start with default --peering dynamic, and seeds hosts are being added 
 to check the peers of each node you can use:
 
 ```
-./peers.sh
-
-PODS=`kubectl get pods -l app=sawtooth -o custom-columns=NAME:.metadata.name --no-headers`
-for i in $PODS
-do
-    echo $i;
-    kubectl exec -it $i sawtooth peer list;
-done
+./scripts/peers.sh
 ```
 
 The output is something like:
