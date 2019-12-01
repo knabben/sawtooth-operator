@@ -7,7 +7,7 @@ import (
 )
 
 // NewService returns Sawtooth TCP ports service
-func (s *Sawtooth) NewService(selector map[string]string) *corev1.Service {
+func (s *Sawtooth) NewService() *corev1.Service {
 	typeMeta := metav1.TypeMeta{
 		Kind:       "Service",
 		APIVersion: "v1",

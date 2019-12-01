@@ -2,16 +2,15 @@ package assets
 
 import (
 	"fmt"
-	sawtoothv1alpha1 "github.com/knabben/sawtooth-operator/pkg/apis/sawtooth/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewPod returns a busybox pod with the same name/namespace as the cr
-func (s *Sawtooth) NewPod(cr *sawtoothv1alpha1.Sawtooth, podName string, number int, peerArgs []string) *corev1.Pod {
+func (s *Sawtooth) NewPod(podName string, peerArgs []string) *corev1.Pod {
 	objectMeta := metav1.ObjectMeta{
 		Name:      podName,
-		Namespace: cr.Namespace,
+		Namespace: s.Schema.Namespace,
 		Labels:    s.GenerateSelector(),
 	}
 
@@ -25,10 +24,10 @@ func (s *Sawtooth) NewPod(cr *sawtoothv1alpha1.Sawtooth, podName string, number 
 	return &corev1.Pod{
 		ObjectMeta: objectMeta,
 		Spec: corev1.PodSpec{
-			InitContainers: createInitContainer(validatorImage),
+			InitContainers: s.GenerateInitContainers(),
 			Containers: []corev1.Container{
-				ValidatorContainer(volumeMounts, peerArgs),
-				RestAPIContainer(volumeMounts),
+				s.ValidatorContainer(volumeMounts, peerArgs),
+				s.RestAPIContainer(volumeMounts),
 			},
 			Volumes: s.GeneratePrivateKeyVolume(),
 		},

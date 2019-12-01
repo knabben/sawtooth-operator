@@ -91,6 +91,9 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Sawtooth")
 
+	// Initialize sawtooth
+	sawtooth := assets.Sawtooth{}
+
 	// Fetch the Sawtooth instance
 	instance := &sawtoothv1alpha1.Sawtooth{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
@@ -103,18 +106,21 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	// Fetch Pod List for later counter
 	podList, err := r.fetchPodListItems()
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
 	numberPods := len(podList)
+
 	reqLogger.Info("Number of pods", "numberPods", numberPods, "spec", instance.Spec.Nodes)
+
+	sawtooth.NodeNumber = numberPods
+	sawtooth.Schema = instance
 
 	// Update status.Nodes if needed
 	if numberPods != instance.Spec.Nodes {
 		podName := fmt.Sprintf("%s-pod-%d", instance.Name, numberPods)
-
 
 		peerArgs := []string{}
 		for _, svc := range instance.Status.Services {
@@ -122,27 +128,27 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 			peerArgs = append(peerArgs, "--seeds", fmt.Sprintf("tcp://%s:8800", svc))
 		}
 
-		// CreatePod starts a new pod
-		pod := assets.CreatePodSpec(instance, podName, numberPods, peerArgs)
+		podSpec := sawtooth.NewPod(podName, peerArgs)
 
 		// Set Sawtooth instance as the owner and controller
-		if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+		if err := controllerutil.SetControllerReference(instance, podSpec, r.scheme); err != nil {
 			reqLogger.Error(err, "Failed to set reference.")
 			return reconcile.Result{}, err
 		}
 
-		err := r.GetPod(pod)
+		err := r.GetPod(podSpec)
 		if err != nil && errors.IsNotFound(err) {
 			reqLogger.Info("Pod not found, creating.", "podName", podName)
 
-			err = r.CreatePod(pod)
+			// CreatePod if does not exists
+			err = r.CreatePod(podSpec)
 			if err != nil {
 				reqLogger.Error(err, "Failed to create pod.")
 				return reconcile.Result{}, err
 			}
 
-			// Create service
-			service := assets.CreateService(strconv.Itoa(numberPods))
+			// Create a new service
+			service := sawtooth.NewService()
 			err := r.client.Create(context.TODO(), service)
 			if err != nil {
 				reqLogger.Error(err, "Failed to create service.")
@@ -154,6 +160,7 @@ func (r *ReconcileSawtooth) Reconcile(request reconcile.Request) (reconcile.Resu
 				return reconcile.Result{}, err
 			}
 
+			// Set service on status
 			instance.Status.Services = append(instance.Status.Services, service.Name)
 			err = r.updateStatus(instance, numberPods)
 			if err != nil {

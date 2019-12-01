@@ -4,14 +4,14 @@ import (
 	"fmt"
 	sawtoothv1alpha1 "github.com/knabben/sawtooth-operator/pkg/apis/sawtooth/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Sawtooth struct {
-	Schema       *sawtoothv1alpha1.Sawtooth
+	Schema     *sawtoothv1alpha1.Sawtooth
 	Pod        *corev1.Pod
 	Service    *corev1.Service
-	NodeNumber int64
+	NodeNumber int
 }
 
 // ValidatorImage generates the image with version tagging
