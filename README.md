@@ -1,7 +1,6 @@
 # Sawtooth Kubernetes Operator
 
-This is an initial test for the Dynamic Sawtooth P2P dynamic capability with seeds
-being added on demand, 
+This is a test for the Sawtooth P2P Dynamic capability with seeds being added on demand via Custom Resource manipulation. 
 
 ## Installing
 
