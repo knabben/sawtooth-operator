@@ -48,9 +48,13 @@ func (s *Sawtooth) GenerateTCPPorts() []corev1.ServicePort {
 
 // GenerateSelector generates the correct POD selector
 func (s *Sawtooth) GenerateSelector() map[string]string {
-	return map[string]string{
+	selector := map[string]string{
 		"sawtooth-node": fmt.Sprintf("sawtooth-%d", s.NodeNumber),
 	}
+	for k, v := range GetLabel() {
+		selector[k] = v
+	}
+	return selector
 }
 
 // GetServiceName returns the generated name for Sawtooth node
