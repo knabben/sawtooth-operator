@@ -7,10 +7,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
 // NewPod returns a busybox pod with the same name/namespace as the cr
 func (s *Sawtooth) NewPod(cr *sawtoothv1alpha1.Sawtooth, podName string, number int, peerArgs []string) *corev1.Pod {
-	objectMeta :=  metav1.ObjectMeta{
+	objectMeta := metav1.ObjectMeta{
 		Name:      podName,
 		Namespace: cr.Namespace,
 		Labels:    s.GenerateSelector(),
@@ -20,16 +19,15 @@ func (s *Sawtooth) NewPod(cr *sawtoothv1alpha1.Sawtooth, podName string, number 
 		{
 			Name:      "validator-priv",
 			MountPath: "/etc/sawtooth/keys",
-		}
+		},
 	}
 
-
 	return &corev1.Pod{
-		ObjectMeta:,
+		ObjectMeta: objectMeta,
 		Spec: corev1.PodSpec{
 			InitContainers: createInitContainer(validatorImage),
 			Containers: []corev1.Container{
-				ValidatorContainer(volumeMounts),
+				ValidatorContainer(volumeMounts, peerArgs),
 				RestAPIContainer(volumeMounts),
 			},
 			Volumes: s.GeneratePrivateKeyVolume(),
@@ -37,7 +35,8 @@ func (s *Sawtooth) NewPod(cr *sawtoothv1alpha1.Sawtooth, podName string, number 
 	}
 }
 
-func ValidatorContainer(volumeMount []corev1.VolumeMount) corev1.Container {
+// ValidatorContainer returns validator container spec
+func (s *Sawtooth) ValidatorContainer(volumeMount []corev1.VolumeMount, peerArgs []string) corev1.Container {
 	command := append([]string{
 		"sawtooth-validator", "-vv",
 		"--endpoint", s.Endpoint(),
@@ -47,32 +46,30 @@ func ValidatorContainer(volumeMount []corev1.VolumeMount) corev1.Container {
 		"--bind", "network:tcp://eth0:8800",
 	}, peerArgs...)
 
-		validatorImage := s.ValidatorImage()
+	containerName := fmt.Sprintf("validator-%d", s.NodeNumber)
 
-		return corev1.Container{
-			Name:    fmt.Sprintf("validator-%s", podName),
-			Image:   validatorImage,
-			Command: command,
-			VolumeMounts:
-	},
-	},
+	return corev1.Container{
+		Name:         containerName,
+		Image:        s.ValidatorImage(),
+		Command:      command,
+		VolumeMounts: volumeMount,
+	}
 }
 
-func RestAPIContainer(volumeMount []corev1.VolumeMount) corev1.Container {
+// RestAPIContainer returns the Rest API container spec
+func (s *Sawtooth) RestAPIContainer(volumeMount []corev1.VolumeMount) corev1.Container {
+	containerName := fmt.Sprintf("rest-api-%d", s.NodeNumber)
 	restApiCommand := append([]string{
-		"sawtooth-rest-api", "-vv", "-C",
-		fmt.Sprintf("tcp://service-%d:4004", number),
+		"sawtooth-rest-api",
+		"-vv",
+		"-C",
+		fmt.Sprintf("tcp://service-%d:4004", s.NodeNumber),
 	})
 
 	return corev1.Container{
-		Name:    fmt.Sprintf("rest-api-%s", podName),
-		Image:   ,
-		Command: restApiCommand,
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name: "validator-priv",
-				MountPath: "/etc/sawtooth/keys",
-			},
-		},
+		Name:         containerName,
+		Image:        s.RestAPIImage(),
+		Command:      restApiCommand,
+		VolumeMounts: volumeMount,
 	}
 }
